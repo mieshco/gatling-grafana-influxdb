@@ -77,3 +77,41 @@ docker-compose up -d
   432  docker ps
   433  docker run -it -p 8086:8086 gatlinggrafanainfluxdb_influxdb
   434  curl -i -XPOST http://localhost:8086/query 8 --data-urlencode “q=SHOW DATABASES”
+  
+  in case of proxy:
+  Create folder for configuring docker service through systemd
+mkdir /etc/systemd/system/docker.service.d
+
+Create service configuration file at /etc/systemd/system/docker.service.d/http-proxy.conf and put the following in the newly created file
+[Service]
+ # NO_PROXY is optional and can be removed if not needed
+ # Change proxy_url to your proxy IP or FQDN and proxy_port to your proxy port
+ # For Proxy server which require username and password authentication, just add the proper username and password to the URL. (see example below)
+
+ # Example without authentication
+ Environment="HTTP_PROXY=http://proxy_url:proxy_port" "NO_PROXY=localhost,127.0.0.0/8"
+
+ # Example with authentication
+ Environment="HTTP_PROXY=http://username:password@proxy_url:proxy_port" "NO_PROXY=localhost,127.0.0.0/8"
+Reload systemctl so that new settings are read
+
+sudo systemctl daemon-reload
+
+Verify that docker service Environment is properly set
+
+sudo systemctl show docker --property Environment
+
+Restart docker service so that it uses updated Environment settings
+
+sudo systemctl restart docker
+
+then in dockerfile
+FROM ubuntu:13.10
+ENV HTTP_PROXY <HTTP_PROXY>
+ENV HTTPS_PROXY <HTTPS_PROXY>
+RUN export http_proxy=$HTTP_PROXY
+RUN export https_proxy=$HTTPS_PROXY
+RUN apt-get update && apt-get upgrade
+I have also run the following in the host system:
+
+sudo HTTP_PROXY=http://<PROXY_DETAILS>/ docker -d &
